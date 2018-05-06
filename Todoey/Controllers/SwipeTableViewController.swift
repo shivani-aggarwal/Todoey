@@ -10,7 +10,7 @@ import UIKit
 import SwipeCellKit
 
 class SwipeTableViewController: UITableViewController, SwipeTableViewCellDelegate {
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.rowHeight = 80.0
@@ -23,7 +23,7 @@ class SwipeTableViewController: UITableViewController, SwipeTableViewCellDelegat
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath) as! SwipeTableViewCell
         
         cell.delegate = self
-
+        
         cell.textLabel?.numberOfLines = 0
         
         return cell
@@ -36,7 +36,7 @@ class SwipeTableViewController: UITableViewController, SwipeTableViewCellDelegat
         let deleteAction = SwipeAction(style: .destructive, title: "Delete") { (action, indexPath) in
             
             self.updateModel(at: indexPath)
-        
+            
         }
         
         // action appearance customization
@@ -56,5 +56,6 @@ class SwipeTableViewController: UITableViewController, SwipeTableViewCellDelegat
     func updateModel(at indexPath : IndexPath) {
         // update data model
     }
-
+    
 }
+
