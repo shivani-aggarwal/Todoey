@@ -8,27 +8,58 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
 class CategoryViewController: SwipeTableViewController {
-
+    
     let realm = try! Realm()
+    
+    let colourArray = ["CBE4F2", "EBF5DF", "D4E6B5", "EBB3A9", "FFE7A8"]
     
     var categories : Results<Category>?
     
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        
         loadCategories()
         
+        navigationController?.navigationBar.prefersLargeTitles = true
+        navigationController?.navigationBar.largeTitleTextAttributes = [NSAttributedStringKey.foregroundColor: UIColor.white]
+        navigationController?.navigationBar.titleTextAttributes = [NSAttributedStringKey.foregroundColor: UIColor.white]
+        
+        navigationController?.navigationBar.tintColor = UIColor.white
+       
     }
-
+    
     //MARK: - Tableview Datasource Methods
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
+        let longPressedGestureRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(longPressedGesture(_:)))
+        
         let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
-        cell.textLabel?.text = categories?[indexPath.row].name ?? "No Categories Added Yet"
+        if categories?.isEmpty == true {
+            print("Setting cell for empty categories")
+            cell.textLabel?.text = "No categories added yet."
+            cell.accessoryType = .none
+            cell.textLabel?.textColor = UIColor.black
+            cell.backgroundColor = UIColor.white
+        }
+        else {
+        
+            if let category = categories?[indexPath.row] {
+                
+                guard let categoryColour = UIColor(hexString: category.colour) else {fatalError()}
+                
+                cell.textLabel?.text = category.name
+                cell.backgroundColor = categoryColour
+                cell.textLabel?.textColor = ContrastColorOf(categoryColour, returnFlat: true)
+                
+            }
+            
+            cell.addGestureRecognizer(longPressedGestureRecognizer)
+        }
         
         return cell
     }
@@ -72,8 +103,8 @@ class CategoryViewController: SwipeTableViewController {
     
     func loadCategories() {
         
-        categories = realm.objects(Category.self)
-
+        categories = realm.objects(Category.self).sorted(byKeyPath: "dateAdded", ascending: true)
+        
         tableView.reloadData()
     }
     
@@ -92,7 +123,7 @@ class CategoryViewController: SwipeTableViewController {
     }
     
     //MARK: - Add Button Pressed
-   
+    
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
         
         var textField = UITextField()
@@ -101,16 +132,21 @@ class CategoryViewController: SwipeTableViewController {
         
         let action = UIAlertAction(title: "Add", style: .default) { (action) in
             
-            if textField.text! != "" {
-                let newCategory = Category()
-                newCategory.name = textField.text!
-                
-                self.save(category: newCategory)
-            }
+            let newCategory = Category()
+            newCategory.name = textField.text ?? ""
+            newCategory.dateAdded = Date()
+            newCategory.colour = self.colourArray[Int(arc4random_uniform(5))]
+            
+            self.save(category: newCategory)
+            
+        }
+        
+        let cancel = UIAlertAction(title: "Cancel", style: .default) { (cancel) in
             
         }
         
         alert.addAction(action)
+        alert.addAction(cancel)
         
         alert.addTextField { (alertTextField) in
             alertTextField.placeholder = "Create new category"
@@ -118,6 +154,52 @@ class CategoryViewController: SwipeTableViewController {
         }
         
         present(alert, animated: true, completion: nil)
+        
+    }
+    
+    //MARK: - Edit Items
+    
+    @objc func longPressedGesture(_ recognizer: UIGestureRecognizer) {
+        
+        if recognizer.state == UIGestureRecognizerState.ended {
+            let longPressedLocation = recognizer.location(in: self.tableView)
+            
+            if let pressedIndexPath = self.tableView.indexPathForRow(at: longPressedLocation) {
+                var textField = UITextField()
+                
+                let alert = UIAlertController(title: "Edit Category", message: "", preferredStyle: .alert)
+                
+                let action = UIAlertAction(title: "Confirm Changes", style: .default) { (action) in
+                    if let editedCategory = self.categories?[pressedIndexPath.row] {
+                        do {
+                            try self.realm.write {
+                                editedCategory.name = textField.text ?? ""
+                                editedCategory.dateAdded = Date()
+                            }
+                        } catch {
+                            print("Error updating category \(error)")
+                        }
+                        
+                        self.tableView.reloadData()
+                    }
+                }
+                
+                let cancel = UIAlertAction(title: "Cancel", style: .default) { (cancel) in
+                    
+                }
+                
+                alert.addAction(action)
+                alert.addAction(cancel)
+                
+                alert.addTextField { (alertText) in
+                    textField = alertText
+                    alertText.placeholder = "New Category Title"
+                }
+                
+                present(alert, animated: true, completion: nil)
+            }
+            
+        }
         
     }
     

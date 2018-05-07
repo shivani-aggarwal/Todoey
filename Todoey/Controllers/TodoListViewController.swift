@@ -8,10 +8,13 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
 class TodoListViewController: SwipeTableViewController {
     
     var todoItems : Results<Item>?
+    
+    @IBOutlet weak var searchBar: UISearchBar!
     
     let realm = try! Realm()
     
@@ -26,7 +29,36 @@ class TodoListViewController: SwipeTableViewController {
         super.viewDidLoad()
         
         loadItems()
+
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+
+        title = selectedCategory?.name
+    
+        guard let colourHex = selectedCategory?.colour else {fatalError()}
         
+        updateNavBar(withHexCode: colourHex)
+    }
+
+    
+    override func willMove(toParentViewController parent: UIViewController?) {
+        
+        updateNavBar(withHexCode: "1A237E")
+    }
+    
+    //MARK: - Nav Bar Setup Methods
+    
+    func updateNavBar(withHexCode colourHexCode: String) {
+        
+        guard let navBar = navigationController?.navigationBar else {fatalError("Navigation Controller does not exist.")}
+        
+        guard let navBarColour = UIColor(hexString: colourHexCode) else {fatalError()}
+        
+        navBar.barTintColor = navBarColour
+        navBar.tintColor = ContrastColorOf(navBarColour, returnFlat: true)
+        navBar.largeTitleTextAttributes = [NSAttributedStringKey.foregroundColor : ContrastColorOf(navBarColour, returnFlat: true)]
+        searchBar.barTintColor = navBarColour
     }
     
     //MARK: - Tableview Datasource Methods
@@ -41,15 +73,32 @@ class TodoListViewController: SwipeTableViewController {
         
         let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
-        cell.addGestureRecognizer(longPressedGestureRecognizer)
-        
-        if let item = todoItems?[indexPath.row] {
-            cell.textLabel?.text = item.title
-            
-            cell.accessoryType = item.done ? .checkmark : .none
+        if todoItems?.isEmpty == true {
+            cell.textLabel?.text = "No items added yet."
+            cell.accessoryType = .none
+            cell.textLabel?.textColor = UIColor.black
+            cell.backgroundColor = UIColor.white
         }
+        
         else {
-            cell.textLabel?.text = "No Items Added"
+        
+            cell.addGestureRecognizer(longPressedGestureRecognizer)
+            
+            if let item = todoItems?[indexPath.row] {
+                cell.textLabel?.text = item.title
+                
+                if let colour = UIColor(hexString: selectedCategory!.colour)?.darken(byPercentage: CGFloat(indexPath.row)/CGFloat(todoItems!.count) * 0.35) {
+                    
+                    cell.backgroundColor = colour
+                    cell.textLabel?.textColor =  ContrastColorOf(colour, returnFlat: true)
+                }
+                
+                cell.accessoryType = item.done ? .checkmark : .none
+            }
+            else {
+                cell.textLabel?.text = "No Items Added"
+            }
+        
         }
         
         return cell
@@ -190,7 +239,7 @@ extension TodoListViewController: UISearchBarDelegate {
     
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
         
-        todoItems = todoItems?.filter("title CONTAINS[cd] %@", searchBar.text!).sorted(byKeyPath: "title", ascending: true)
+        todoItems = todoItems?.filter("title CONTAINS[cd] %@", searchBar.text!).sorted(byKeyPath: "dateCreated", ascending: true)
         
         tableView.reloadData()
     }
